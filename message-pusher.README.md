@@ -37,10 +37,10 @@ _✨ 搭建专属于你的消息推送服务，支持多种消息推送方式，
   ·
   <a href="https://github.com/songquanpeng/message-pusher/issues">意见反馈</a>
   ·
-  <a href="https://message-pusher.onrender.com/">在线演示</a>
+  <a href="https://push.justsong.cn">在线演示</a>
 </p>
 
-> **Note**：官方部署站 https://msgpusher.com 现已上线，当前开放注册，欢迎使用。如果收到积极反馈未来可以考虑换用延迟更低的服务器。
+> **Warning**：原域名（msgpusher.com）将于 2026-11-24 下线，请尽快迁移至 https://push.justsong.cn
 
 > **Warning**：从 `v0.3` 版本升级到 `v0.4` 版本需要手动迁移数据库，具体方法见[迁移数据库](#迁移数据库)。
 
@@ -83,6 +83,8 @@ _✨ 搭建专属于你的消息推送服务，支持多种消息推送方式，
 ### 通过 Docker 部署
 部署：`docker run -d --restart always --name message-pusher -p 3000:3000 -e TZ=Asia/Shanghai -v /home/ubuntu/data/message-pusher:/data justsong/message-pusher`
 
+如果无法拉去，请将 `justsong/message-pusher` 替换为 `ghcr.io/songquanpeng/message-pusher`。
+
 更新：`docker run --rm -v /var/run/docker.sock:/var/run/docker.sock containrrr/watchtower -cR`
 
 开放的端口号为 3000，之后用 Nginx 配置域名，反代以及 SSL 证书即可，具体参考[详细部署教程](https://iamazing.cn/page/how-to-deploy-a-website)。
@@ -92,7 +94,7 @@ _✨ 搭建专属于你的消息推送服务，支持多种消息推送方式，
 Nginx 的参考配置：
 ```
 server{
-   server_name msgpusher.com;  # 请根据实际情况修改你的域名
+   server_name push.justsong.cn;  # 请根据实际情况修改你的域名
    
    location / {
           client_max_body_size  64m;
@@ -214,11 +216,16 @@ proxy_send_timeout 300s;
       15. `tencent_alarm`：通过腾讯云监控告警进行推送，仅支持 `description` 字段。
       16. `none`：仅保存到数据库，不做推送。
    5. `token`：如果你在后台设置了推送 token，则此项必填。另外可以通过设置 HTTP `Authorization` 头部设置此项。
+      * 注意令牌有两种，一种是全局鉴权令牌，一种是通道维度的令牌，前者可以鉴权任何通道，后者只能鉴权指定通道。
    6. `url`：选填，如果不填则系统自动为消息生成 URL，其内容为消息详情。
    7. `to`：选填，推送给指定用户，如果不填则默认推送给自己，受限于具体的消息推送方式，有些推送方式不支持此项。
       1. `@all`：推送给所有用户。
       2. `user1|user2|user3`：推送给多个用户，用户之间使用 `|` 分隔。
    8. `async`：选填，如果设置为 `true` 则消息推送将在后台异步进行，返回结果包含 `uuid` 字段，可用于后续[获取消息发送状态](./docs/API.md#通过消息 UUID 获取消息发送状态)。
+   9. `render_mode`：选填，
+      1. 如果设置为 `code`，则消息体会被自动嵌套在代码块中进行渲染；
+      2. 如果设置为 `raw`，则不进行 Markdown 解析；
+      3. 默认 `markdown`，即进行 Markdown 解析。
 3. `POST` 请求方式：字段与上面 `GET` 请求方式保持一致。
    + 如果发送的是 JSON，HTTP Header `Content-Type` 请务必设置为 `application/json`，否则一律按 Form 处理。
    + POST 请求方式下的 `token` 字段也可以通过 URL 查询参数进行设置。
@@ -254,7 +261,7 @@ proxy_send_timeout 300s;
 ```shell
 #!/bin/bash
 
-MESSAGE_PUSHER_SERVER="https://msgpusher.com"
+MESSAGE_PUSHER_SERVER="https://push.justsong.cn"
 MESSAGE_PUSHER_USERNAME="test"
 MESSAGE_PUSHER_TOKEN="666"
 
@@ -276,6 +283,28 @@ function send_message_with_json {
 send_message 'title' 'description' 'content'
 ```
 
+另一个版本：
+```shell
+MESSAGE_PUSHER_SERVER="https://push.justsong.cn"
+MESSAGE_PUSHER_USERNAME="test"
+MESSAGE_PUSHER_TOKEN="666"
+MESSAGE_PUSHER_CHANNEL="lark"
+
+sendmsg() {
+    if [ -t 0 ]; then
+        local param="$*"
+    else
+        local param=$(</dev/stdin)
+    fi
+    curl -s -o /dev/null --get --data-urlencode "content=${param}" "$MESSAGE_PUSHER_SERVER/push/$MESSAGE_PUSHER_USERNAME?channel=$MESSAGE_PUSHER_CHANNEL&token=$MESSAGE_PUSHER_TOKEN"
+}
+```
+
+之后便可以进行这样的操作：
+```shell
+uname -ra | sendmsg
+```
+
 </div>
 </details>
 
@@ -286,7 +315,7 @@ send_message 'title' 'description' 'content'
 ```python
 import requests
 
-SERVER = "https://msgpusher.com"
+SERVER = "https://push.justsong.cn"
 USERNAME = "test"
 TOKEN = "666"
 
@@ -334,7 +363,7 @@ import (
    "net/url"
 )
 
-var serverAddress = "https://msgpusher.com"
+var serverAddress = "https://push.justsong.cn"
 var username = "test"
 var token = "666"
 
@@ -451,7 +480,7 @@ namespace Demo
         /// <summary>
         /// ServerAddress
         /// </summary>
-        public const string ServerAddress = "https://msgpusher.com";
+        public const string ServerAddress = "https://push.justsong.cn";
 
         /// <summary>
         /// UserName
@@ -562,7 +591,7 @@ namespace Demo
 const axios = require('axios');
 const querystring = require('querystring');
 
-const MESSAGE_PUSHER_SERVER = 'https://msgpusher.com'
+const MESSAGE_PUSHER_SERVER = 'https://push.justsong.cn'
 const MESSAGE_PUSHER_USERNAME = 'test'
 const MESSAGE_PUSHER_TOKEN = '666'
 
